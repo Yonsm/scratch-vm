@@ -46,6 +46,7 @@ function handleClose() {
     _entities = null
 }
 
+_states = {}
 function handleMessage(message) {
     var json = JSON.parse(message.data)
     console.log('handleMessage: ' + json.type)
@@ -66,12 +67,7 @@ function handleMessage(message) {
             console.log('未知结果 ' + (json.error ? json.error.message : message.data))
             break
         case 'event':
-            var entity = json.event.data.new_state
-            if (entity) {
-                //handleEvent(entity)
-            } else {
-                console.log('事件错误 ' + (json.error.message || message.data))
-            }
+            handleEvent(json)
             break
         case 'auth_invalid':
             console.log('无效认证！')
@@ -82,8 +78,37 @@ function handleMessage(message) {
     }
 }
 
+function handleEvent(json) {
+    var entity = json.event.data.new_state
+    if (entity) {
+        for (var i in _entities) {
+            var old_entity = _entities[i]
+            if (old_entity.entity_id == entity.entity_id) {
+                if (entity.state != old_entity.state) {
+                    console.log(entity.entity_id + ' 状态从 ' + old_entity.state + ' 变化为 ' + entity.state)
+                    _states[entity.entity_id] = entity.state
+                } else {
+                    console.log(entity.entity_id + ' 事件 ' + entity.state)
+                }
+                _entities.splice(i, 1, entity)
+                return
+            }
+        }
+
+        _entities.push(entity)
+        _states[entity.entity_id] = entity.state
+        console.log('新增设备：' + entity.entity_id + '，状态为：' + entity.state)
+    } else {
+        console.log('事件错误 ' + (json.error.message || JSON.stringify(json)))
+    }
+}
+
 function findEntityId(friendly_name) {
-    console.log('查找设备名称: ' + friendly_name)
+    if (friendly_name.split('.').length == 2) {
+        return friendly_name
+    }
+
+    //console.log('查找设备名称: ' + friendly_name)
     for (var i in _entities) {
         var entity = _entities[i]
         if (entity.attributes.friendly_name && entity.attributes.friendly_name == friendly_name) {
@@ -94,21 +119,15 @@ function findEntityId(friendly_name) {
     return null
 }
 
-function sendService(service, data) {
-    var entity_id = data.entity_id
-    var parts = entity_id.split('.')
-
-    if (parts.length != 2) {
-        // Replace friendly_name to entity_id
-        entity_id = findEntityId(entity_id)
-        if (entity_id == null) {
-            return
-        }
+function callService(service, data) {
+    var entity_id = findEntityId(data.entity_id)
+    if (entity_id == null) {
+        return
+    } else {
         data.entity_id = entity_id
-        parts = entity_id.split('.')
     }
 
-    var domain = parts[0]
+    var domain = entity_id.split('.')[0]
     if (domain == 'cover' /* || entity_id == 'group.all_covers'*/) {
         // Replace cover service
         if (service == 'turn_on') {
@@ -130,15 +149,15 @@ function sendService(service, data) {
     )
 }
 
-function callService(service, data) {
+function execService(service, data) {
     if (_ws == null) {
         connect()
     }
     if (_wsid >= 2) {
-        sendService(service, data)
+        callService(service, data)
     } else {
         setTimeout(function() {
-            sendService(service, data)
+            callService(service, data)
         }, 2000)
     }
 }
@@ -180,7 +199,7 @@ class Scratch3HomeAssistantBlocks {
                     blockType: BlockType.COMMAND,
                     text: formatMessage({
                         id: 'homeassistant.turn',
-                        default: '设置 [ENTITY_ID] 的状态 [ON_OFF]',
+                        default: '设置 [ENTITY_ID] 的状态 [STATE]',
                         description: 'Turn on/off the entity.'
                     }),
                     arguments: {
@@ -192,7 +211,7 @@ class Scratch3HomeAssistantBlocks {
                                 description: 'default entity to turn.'
                             })
                         },
-                        ON_OFF: {
+                        STATE: {
                             type: ArgumentType.STRING,
                             menu: 'ON_OFF',
                             defaultValue: formatMessage({
@@ -280,29 +299,56 @@ class Scratch3HomeAssistantBlocks {
                     }
                 },
                 {
-                    opcode: 'whenBinarySensorChanged',
+                    opcode: 'whenStateChanged',
                     text: formatMessage({
-                        id: 'videoSensing.whenBinarySensorChanged',
-                        default: '当 [ENTITY_ID] 的状态变为 [ON_OFF]',
-                        description: 'Event that triggers when binary sensor changed.'
+                        id: 'videoSensing.whenStateChanged',
+                        default: '当 [ENTITY_ID] 变为 [STATE]',
+                        description: 'Event that triggers when state changed.'
                     }),
                     blockType: BlockType.HAT,
                     arguments: {
                         ENTITY_ID: {
                             type: ArgumentType.STRING,
                             defaultValue: formatMessage({
-                                id: 'homeassistant.defaultEntityToBinarySensorChanged',
-                                default: '过道人体感应',
-                                description: 'default entity to binary sensor changed.'
+                                id: 'homeassistant.defaultEntityToStateChanged',
+                                default: '餐厅亮度',
+                                description: 'default entity for state changed.'
                             })
                         },
-                        ON_OFF: {
+                        STATE: {
+                            type: ArgumentType.STRING,
+                            defaultValue: formatMessage({
+                                id: 'homeassistant.defaultStateToStateChanged',
+                                default: 'on',
+                                description: 'default state for state changed.'
+                            })
+                        }
+                    }
+                },
+                {
+                    opcode: 'whenStateChangedToOnOff',
+                    text: formatMessage({
+                        id: 'videoSensing.whenStateChangedToOnOff',
+                        default: '当 [ENTITY_ID] 变为 [STATE]',
+                        description: 'Event that triggers when state changed to on/off.'
+                    }),
+                    blockType: BlockType.HAT,
+                    arguments: {
+                        ENTITY_ID: {
+                            type: ArgumentType.STRING,
+                            defaultValue: formatMessage({
+                                id: 'homeassistant.defaultEntityToStateChangedToOnOff',
+                                default: '过道人体感应',
+                                description: 'default entity for state changed to on/off.'
+                            })
+                        },
+                        STATE: {
                             type: ArgumentType.STRING,
                             menu: 'ON_OFF',
                             defaultValue: formatMessage({
-                                id: 'homeassistant.defaultStateToBinarySensorChanged',
+                                id: 'homeassistant.defaultStateToStateChangedToOnOff',
                                 default: 'on',
-                                description: 'default state to binary sensor changed.'
+                                description: 'default state for state changed to on/off.'
                             })
                         }
                     }
@@ -332,24 +378,37 @@ class Scratch3HomeAssistantBlocks {
     }
 
     turn(args, util) {
-        callService('turn_' + args.ON_OFF.toUpperCase(), { entity_id: args.ENTITY_ID })
+        execService('turn_' + args.STATE.toUpperCase(), { entity_id: args.ENTITY_ID })
     }
 
     setLightColor(args, util) {
         const rgb = Cast.toRgbColorObject(args.COLOR)
-        callService('turn_on', { entity_id: args.ENTITY_ID, rgb_color: [rgb.r, rgb.g, rgb.b] })
+        execService('turn_on', { entity_id: args.ENTITY_ID, rgb_color: [rgb.r, rgb.g, rgb.b] })
     }
 
     setLightTemperature(args, util) {
-        callService('turn_on', { entity_id: args.ENTITY_ID, kelvin: args.TEMPERATURE })
+        execService('turn_on', { entity_id: args.ENTITY_ID, kelvin: args.TEMPERATURE })
     }
 
     setLightBrightness(args, util) {
-        callService('turn_on', { entity_id: args.ENTITY_ID, brightness: args.BRIGHTNESS })
+        execService('turn_on', { entity_id: args.ENTITY_ID, brightness: args.BRIGHTNESS })
     }
 
-    whenBinarySensorChanged(args, util) {
+    whenStateChanged(args, util) {
+        if (_ws == null) {
+            connect()
+        }
+        var entity_id = findEntityId(args.ENTITY_ID)
+        if (entity_id && _states[entity_id] == args.STATE) {
+            delete _states[entity_id]
+            console.log('触发事件啦: ' + args.ENTITY_ID + ' 状态: ' + args.STATE)
+            return true
+        }
         return false
+    }
+
+    whenStateChangedToOnOff(args, util) {
+        return whenStateChanged(args, util)
     }
 }
 
