@@ -1,6 +1,6 @@
 const ArgumentType = require('../../extension-support/argument-type')
 const BlockType = require('../../extension-support/block-type')
-// const Cast = require('../../util/cast');
+const Cast = require('../../util/cast')
 // const Color = require('../../util/color');
 const formatMessage = require('format-message')
 
@@ -18,8 +18,6 @@ const menuIconURI = blockIconURI
 // Home Assistant
 _ws = null // WebSocket handle
 _wsid = 0 // WebSocket session id
-_wsapi = 'wss://xxxx:8123/api/websocket' // WebSocket api url
-_token = 'xxxx' // Access token or password
 
 _entities = null
 
@@ -101,6 +99,7 @@ function sendService(service, data) {
     var parts = entity_id.split('.')
 
     if (parts.length != 2) {
+        // Replace friendly_name to entity_id
         entity_id = findEntityId(entity_id)
         if (entity_id == null) {
             return
@@ -110,6 +109,15 @@ function sendService(service, data) {
     }
 
     var domain = parts[0]
+    if (domain == 'cover' /* || entity_id == 'group.all_covers'*/) {
+        // Replace cover service
+        if (service == 'turn_on') {
+            service = 'open_cover'
+        } else if (service == 'turn_off') {
+            service = 'close_cover'
+        }
+    }
+
     console.log('Processing: ' + domain + '/' + service + '/' + entity_id)
     _ws.send(
         JSON.stringify({
@@ -131,7 +139,7 @@ function callService(service, data) {
     } else {
         setTimeout(function() {
             sendService(service, data)
-        }, 3000)
+        }, 2000)
     }
 }
 
@@ -172,8 +180,8 @@ class Scratch3HomeAssistantBlocks {
                     blockType: BlockType.COMMAND,
                     text: formatMessage({
                         id: 'homeassistant.turn',
-                        default: '调节 [ENTITY_ID] 为 [ON_OFF]',
-                        description: 'Turn on/off the entify.'
+                        default: '设置 [ENTITY_ID] 的状态 [ON_OFF]',
+                        description: 'Turn on/off the entity.'
                     }),
                     arguments: {
                         ENTITY_ID: {
@@ -189,7 +197,7 @@ class Scratch3HomeAssistantBlocks {
                             menu: 'ON_OFF',
                             defaultValue: formatMessage({
                                 id: 'homeassistant.defaultActionToTurn',
-                                default: 'turn_on',
+                                default: 'on',
                                 description: 'default action to turn.'
                             })
                         }
@@ -200,20 +208,102 @@ class Scratch3HomeAssistantBlocks {
                     blockType: BlockType.COMMAND,
                     text: formatMessage({
                         id: 'homeassistant.setLightColor',
-                        default: '设置 [ENTITY_ID] 的灯光颜色为 [COLOR]',
+                        default: '设置灯光 [ENTITY_ID] 的颜色为 [COLOR]',
                         description: 'set the light color to a particular (RGB) value'
                     }),
                     arguments: {
                         ENTITY_ID: {
                             type: ArgumentType.STRING,
                             defaultValue: formatMessage({
-                                id: 'homeassistant.defaultEntityToTurn',
+                                id: 'homeassistant.defaultEntityToSetColor',
                                 default: '壁灯',
-                                description: 'default entity to turn.'
+                                description: 'default entity to set color.'
                             })
                         },
                         COLOR: {
                             type: ArgumentType.COLOR
+                        }
+                    }
+                },
+                {
+                    opcode: 'setLightTemperature',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'homeassistant.setLightTemperature',
+                        default: '设置灯光 [ENTITY_ID] 的色温为 [TEMPERATURE]',
+                        description: 'set color temperature for the light.'
+                    }),
+                    arguments: {
+                        ENTITY_ID: {
+                            type: ArgumentType.STRING,
+                            defaultValue: formatMessage({
+                                id: 'homeassistant.defaultEntityToSetTemperature',
+                                default: '壁灯',
+                                description: 'default entity to set temperature.'
+                            })
+                        },
+                        TEMPERATURE: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: formatMessage({
+                                id: 'homeassistant.defaultLightTemperature',
+                                default: '4000',
+                                description: 'default light temperature.'
+                            })
+                        }
+                    }
+                },
+                {
+                    opcode: 'setLightBrightness',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'homeassistant.setLightBrightness',
+                        default: '设置灯光 [ENTITY_ID] 的亮度为 [BRIGHTNESS]',
+                        description: 'set brightness for the light.'
+                    }),
+                    arguments: {
+                        ENTITY_ID: {
+                            type: ArgumentType.STRING,
+                            defaultValue: formatMessage({
+                                id: 'homeassistant.defaultEntityToSetBrightness',
+                                default: '壁灯',
+                                description: 'default entity to set brightness.'
+                            })
+                        },
+                        BRIGHTNESS: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: formatMessage({
+                                id: 'homeassistant.defaultLightBrightness',
+                                default: '255',
+                                description: 'default light brightness.'
+                            })
+                        }
+                    }
+                },
+                {
+                    opcode: 'whenBinarySensorChanged',
+                    text: formatMessage({
+                        id: 'videoSensing.whenBinarySensorChanged',
+                        default: '当 [ENTITY_ID] 的状态变为 [ON_OFF]',
+                        description: 'Event that triggers when binary sensor changed.'
+                    }),
+                    blockType: BlockType.HAT,
+                    arguments: {
+                        ENTITY_ID: {
+                            type: ArgumentType.STRING,
+                            defaultValue: formatMessage({
+                                id: 'homeassistant.defaultEntityToBinarySensorChanged',
+                                default: '过道人体感应',
+                                description: 'default entity to binary sensor changed.'
+                            })
+                        },
+                        ON_OFF: {
+                            type: ArgumentType.STRING,
+                            menu: 'ON_OFF',
+                            defaultValue: formatMessage({
+                                id: 'homeassistant.defaultStateToBinarySensorChanged',
+                                default: 'on',
+                                description: 'default state to binary sensor changed.'
+                            })
                         }
                     }
                 }
@@ -226,7 +316,7 @@ class Scratch3HomeAssistantBlocks {
                             default: '打开',
                             description: 'ON'
                         }),
-                        value: 'turn_on'
+                        value: 'on'
                     },
                     {
                         text: formatMessage({
@@ -234,7 +324,7 @@ class Scratch3HomeAssistantBlocks {
                             default: '关闭',
                             description: 'OFF'
                         }),
-                        value: 'turn_off'
+                        value: 'off'
                     }
                 ]
             }
@@ -242,16 +332,24 @@ class Scratch3HomeAssistantBlocks {
     }
 
     turn(args, util) {
-        callService(args.ON_OFF, { entity_id: args.ENTITY_ID })
+        callService('turn_' + args.ON_OFF.toUpperCase(), { entity_id: args.ENTITY_ID })
     }
 
     setLightColor(args, util) {
-        if (_ws == null) {
-            this._connect()
-        }
-        console.log(args.COLOR)
-        // const rgb = Cast.toRgbColorObject(args.COLOR);
-        // console.log(rgb);
+        const rgb = Cast.toRgbColorObject(args.COLOR)
+        callService('turn_on', { entity_id: args.ENTITY_ID, rgb_color: [rgb.r, rgb.g, rgb.b] })
+    }
+
+    setLightTemperature(args, util) {
+        callService('turn_on', { entity_id: args.ENTITY_ID, kelvin: args.TEMPERATURE })
+    }
+
+    setLightBrightness(args, util) {
+        callService('turn_on', { entity_id: args.ENTITY_ID, brightness: args.BRIGHTNESS })
+    }
+
+    whenBinarySensorChanged(args, util) {
+        return false
     }
 }
 
