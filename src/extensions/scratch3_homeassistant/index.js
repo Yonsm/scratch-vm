@@ -18,6 +18,9 @@ const menuIconURI = blockIconURI
 // Home Assistant
 _ws = null // WebSocket handle
 _wsid = 0 // WebSocket session id
+_wsapi = 'wss://xxx:8123/api/websocket' // WebSocket api url
+_token =
+    'xxx'
 
 _entities = null
 
@@ -103,6 +106,16 @@ function handleEvent(json) {
     }
 }
 
+function findEntity(friendly_name) {
+    for (var i in _entities) {
+        var entity = _entities[i]
+        if (entity.entity_id == friendly_name || (entity.attributes.friendly_name && entity.attributes.friendly_name == friendly_name)) {
+            return entity
+        }
+    }
+    return null
+}
+
 function findEntityId(friendly_name) {
     if (friendly_name.split('.').length == 2) {
         return friendly_name
@@ -120,39 +133,39 @@ function findEntityId(friendly_name) {
 }
 
 function callService(service, data) {
-    var entity_id = findEntityId(data.entity_id)
-    if (entity_id == null) {
-        return
-    } else {
-        data.entity_id = entity_id
-    }
+    if (data.entity_id) {
+        var entity_id = findEntityId(data.entity_id)
+        if (entity_id == null) {
+            return
+        } else {
+            data.entity_id = entity_id
+        }
 
-    var domain = entity_id.split('.')[0]
-    if (domain == 'cover' /* || entity_id == 'group.all_covers'*/) {
-        // Replace cover service
-        if (service == 'turn_on') {
-            service = 'open_cover'
-        } else if (service == 'turn_off') {
-            service = 'close_cover'
+        var domain = entity_id.split('.')[0]
+        if (domain == 'cover' /* || entity_id == 'group.all_covers'*/) {
+            // Replace cover service
+            if (service == 'turn_on') {
+                service = 'open_cover'
+            } else if (service == 'turn_off') {
+                service = 'close_cover'
+            }
         }
     }
 
-    console.log('Processing: ' + domain + '/' + service + '/' + entity_id)
-    _ws.send(
-        JSON.stringify({
-            id: ++_wsid,
-            type: 'call_service',
-            domain: domain,
-            service: service,
-            service_data: data
-        })
-    )
+    var command = JSON.stringify({
+        id: ++_wsid,
+        type: 'call_service',
+        domain: domain,
+        service: service,
+        service_data: data
+    })
+    _ws.send(command)
+    console.log('调用服务: ' + service + '，参数：' + command)
 }
 
 function execService(service, data) {
-    if (_ws == null) {
-        connect()
-    }
+    if (_ws == null) connect()
+
     if (_wsid >= 2) {
         callService(service, data)
     } else {
@@ -169,6 +182,8 @@ class Scratch3HomeAssistantBlocks {
          * @type {Runtime}
          */
         this.runtime = runtime
+
+        //if (_ws == null) connect()
     }
 
     /**
@@ -190,9 +205,9 @@ class Scratch3HomeAssistantBlocks {
                 default: '家居助手',
                 description: 'Label for the Home Assistant extension category'
             }),
-            // menuIconURI: menuIconURI,
-            blockIconURI: blockIconURI,
-            // showStatusButton: true,
+            menuIconURI: menuIconURI,
+            //blockIconURI: blockIconURI,
+            //showStatusButton: false,
             blocks: [
                 {
                     opcode: 'turn',
@@ -299,10 +314,30 @@ class Scratch3HomeAssistantBlocks {
                     }
                 },
                 {
+                    opcode: 'miaiSpeech',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'homeassistant.miaiSpeech',
+                        default: '让小爱音箱说 [TEXT]',
+                        description: 'Text to speech in MiAi.'
+                    }),
+                    arguments: {
+                        TEXT: {
+                            type: ArgumentType.STRING,
+                            defaultValue: formatMessage({
+                                id: 'homeassistant.defaultTextToSpeech',
+                                default: '你好，我是 Scratch',
+                                description: 'default text to speech.'
+                            })
+                        }
+                    }
+                },
+                '---',
+                {
                     opcode: 'whenStateChanged',
                     text: formatMessage({
                         id: 'videoSensing.whenStateChanged',
-                        default: '当 [ENTITY_ID] 变为 [STATE]',
+                        default: '当 [ENTITY_ID] 状态变化',
                         description: 'Event that triggers when state changed.'
                     }),
                     blockType: BlockType.HAT,
@@ -314,14 +349,6 @@ class Scratch3HomeAssistantBlocks {
                                 default: '餐厅亮度',
                                 description: 'default entity for state changed.'
                             })
-                        },
-                        STATE: {
-                            type: ArgumentType.STRING,
-                            defaultValue: formatMessage({
-                                id: 'homeassistant.defaultStateToStateChanged',
-                                default: 'on',
-                                description: 'default state for state changed.'
-                            })
                         }
                     }
                 },
@@ -329,7 +356,7 @@ class Scratch3HomeAssistantBlocks {
                     opcode: 'whenStateChangedToOnOff',
                     text: formatMessage({
                         id: 'videoSensing.whenStateChangedToOnOff',
-                        default: '当 [ENTITY_ID] 变为 [STATE]',
+                        default: '当 [ENTITY_ID] 状态变为 [STATE]',
                         description: 'Event that triggers when state changed to on/off.'
                     }),
                     blockType: BlockType.HAT,
@@ -349,6 +376,46 @@ class Scratch3HomeAssistantBlocks {
                                 id: 'homeassistant.defaultStateToStateChangedToOnOff',
                                 default: 'on',
                                 description: 'default state for state changed to on/off.'
+                            })
+                        }
+                    }
+                },
+                '---',
+                {
+                    opcode: 'getState',
+                    text: formatMessage({
+                        id: 'homeassistant.getState',
+                        default: '[ENTITY_ID] 的当前状态',
+                        description: 'get the current state for a entity.'
+                    }),
+                    blockType: BlockType.REPORTER,
+                    arguments: {
+                        ENTITY_ID: {
+                            type: ArgumentType.STRING,
+                            defaultValue: formatMessage({
+                                id: 'homeassistant.defaultEntityForState',
+                                default: '阳台颗粒物',
+                                description: 'default entity for state.'
+                            })
+                        }
+                    }
+                },
+                {
+                    opcode: 'isStateOn',
+                    text: formatMessage({
+                        id: 'microbit.isStateOn',
+                        default: '[ENTITY_ID] 已打开?',
+                        description: 'is state on?'
+                    }),
+                    blockType: BlockType.BOOLEAN,
+                    arguments: {
+                        ENTITY_ID: {
+                            type: ArgumentType.STRING,
+                            //menu: 'ENTITY_ID',
+                            defaultValue: formatMessage({
+                                id: 'homeassistant.defaultEntityForIsStateOn',
+                                default: '过道灯',
+                                description: 'default entity for is state on.'
                             })
                         }
                     }
@@ -372,13 +439,26 @@ class Scratch3HomeAssistantBlocks {
                         }),
                         value: 'off'
                     }
-                ]
+                ],
+                ENTITY_ID: this.ENTITY_ID
             }
         }
     }
 
+    get ENTITY_ID() {
+        console.log('ENTITY_ID')
+        var ret = []
+        for (var i in _entities) {
+            var entity = _entities[i]
+            if (entity.attributes.friendly_name) {
+                ret.push({ text: entity.attributes.friendly_name, value: entity.entity_id })
+            }
+        }
+        return ret
+    }
+
     turn(args, util) {
-        execService('turn_' + args.STATE.toUpperCase(), { entity_id: args.ENTITY_ID })
+        execService('turn_' + args.STATE, { entity_id: args.ENTITY_ID })
     }
 
     setLightColor(args, util) {
@@ -394,21 +474,39 @@ class Scratch3HomeAssistantBlocks {
         execService('turn_on', { entity_id: args.ENTITY_ID, brightness: args.BRIGHTNESS })
     }
 
+    miaiSpeech(args, util) {
+        execService('hello_miai.send', { message: args.TEXT })
+    }
+
     whenStateChanged(args, util) {
-        if (_ws == null) {
-            connect()
-        }
+        if (_ws == null) connect()
+
         var entity_id = findEntityId(args.ENTITY_ID)
-        if (entity_id && _states[entity_id] == args.STATE) {
+        if (entity_id && _states[entity_id] != null && (args.STATE == null || _states[entity_id] == args.STATE)) {
             delete _states[entity_id]
-            console.log('触发事件啦: ' + args.ENTITY_ID + ' 状态: ' + args.STATE)
+            console.log(args.ENTITY_ID + ' 状态变化 ' + _states[entity_id])
             return true
         }
         return false
     }
 
     whenStateChangedToOnOff(args, util) {
-        return whenStateChanged(args, util)
+        return this.whenStateChanged(args)
+    }
+
+    getState(args) {
+        if (_ws == null) connect()
+
+        var entity = findEntity(args.ENTITY_ID)
+        if (entity) {
+            return entity.state
+        }
+        return '未知'
+    }
+
+    isStateOn(args) {
+        var state = this.getState(args)
+        return state == 'on'
     }
 }
 
