@@ -18,9 +18,8 @@ const menuIconURI = blockIconURI
 // Home Assistant
 _ws = null // WebSocket handle
 _wsid = 0 // WebSocket session id
-_wsapi = 'wss://xxx:8123/api/websocket' // WebSocket api url
-_token =
-    'xxx'
+_wsapi = 'wss://xxx.xxx.xxx:8123/api/websocket' // TODO: Replace with yours
+_token = null // TODO: Replace with HomeAssiatant long-live token, or enabled trusted_networks auth
 
 _entities = null
 
@@ -150,6 +149,10 @@ function callService(service, data) {
                 service = 'close_cover'
             }
         }
+    } else {
+        var parts = service.split('.')
+        domain = parts[0]
+        service = parts[1]
     }
 
     var command = JSON.stringify({
@@ -326,7 +329,7 @@ class Scratch3HomeAssistantBlocks {
                             type: ArgumentType.STRING,
                             defaultValue: formatMessage({
                                 id: 'homeassistant.defaultTextToSpeech',
-                                default: '你好，我是 Scratch',
+                                default: '你好，我是小爱同学',
                                 description: 'default text to speech.'
                             })
                         }
@@ -445,6 +448,7 @@ class Scratch3HomeAssistantBlocks {
         }
     }
 
+    // #TODO: Make ENTITY_ID menu selectable instead of string field
     get ENTITY_ID() {
         console.log('ENTITY_ID')
         var ret = []
