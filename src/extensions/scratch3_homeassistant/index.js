@@ -394,7 +394,7 @@ class Scratch3HomeAssistantBlocks {
     whenStateChanged(args, util) {
         if (_ws == null) connect()
 
-        var entity_id = findEntityId(args.ENTITY)
+        var entity_id = args.ENTITY
         if (entity_id && _states_changed[entity_id] != null && (args.ONOFF == null || _states_changed[entity_id] == args.ONOFF)) {
             delete _states_changed[entity_id]
             console.log(args.ENTITY + ' 状态变化 ' + _states_changed[entity_id])
