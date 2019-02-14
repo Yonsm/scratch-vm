@@ -59,7 +59,7 @@ function handleMessage(message) {
             console.log('Invalid auth!')
             break
         default:
-            console.log('Ignore message: ' + json)
+            console.log(json)
             break
     }
 }
@@ -283,7 +283,7 @@ class Scratch3HomeAssistantBlocks {
                 {
                     opcode: 'whenStateChanged',
                     text: formatMessage({
-                        id: 'videoSensing.whenStateChanged',
+                        id: 'homeassistant.whenStateChanged',
                         default: '当 [ENTITY] 状态变化'
                     }),
                     blockType: BlockType.HAT,
