@@ -108,6 +108,24 @@ function buildEntityMenu() {
     })
 }
 
+function filterEntityMenu(filter) {
+    if (_ws == null) connect()
+
+    if (filter) {
+        var menu = []
+        for (var i in _entity_menu) {
+            var item = _entity_menu[i]
+            if (filter(item.value.split('.')[0])) {
+                menu.push(item)
+            }
+        }
+    } else {
+        var menu = _entity_menu
+    }
+
+    return menu.length ? menu : [{ text: '暂无', value: 'NA' }]
+}
+
 function findEntity(entity_id) {
     for (var i in _entities) {
         var entity = _entities[i]
@@ -194,7 +212,7 @@ class Scratch3HomeAssistantBlocks {
                     arguments: {
                         ENTITY: {
                             type: ArgumentType.STRING,
-                            menu: 'ENTITY'
+                            menu: 'TURNONOFF_ENTITY'
                         },
                         ONOFF: {
                             type: ArgumentType.STRING,
@@ -213,7 +231,7 @@ class Scratch3HomeAssistantBlocks {
                     arguments: {
                         ENTITY: {
                             type: ArgumentType.STRING,
-                            menu: 'ENTITY'
+                            menu: 'LIGHT_ENTITY'
                         },
                         COLOR: {
                             type: ArgumentType.COLOR
@@ -230,7 +248,7 @@ class Scratch3HomeAssistantBlocks {
                     arguments: {
                         ENTITY: {
                             type: ArgumentType.STRING,
-                            menu: 'ENTITY'
+                            menu: 'LIGHT_ENTITY'
                         },
                         TEMPERATURE: {
                             type: ArgumentType.NUMBER,
@@ -251,7 +269,7 @@ class Scratch3HomeAssistantBlocks {
                     arguments: {
                         ENTITY: {
                             type: ArgumentType.STRING,
-                            menu: 'ENTITY'
+                            menu: 'LIGHT_ENTITY'
                         },
                         BRIGHTNESS: {
                             type: ArgumentType.NUMBER,
@@ -338,7 +356,7 @@ class Scratch3HomeAssistantBlocks {
                     arguments: {
                         ENTITY: {
                             type: ArgumentType.STRING,
-                            menu: 'ENTITY'
+                            menu: 'ISSTATEON_ENTITY'
                         }
                     }
                 }
@@ -360,7 +378,10 @@ class Scratch3HomeAssistantBlocks {
                         value: 'off'
                     }
                 ],
-                ENTITY: 'getEntityMenu'
+                ENTITY: 'getEntityMenu',
+                LIGHT_ENTITY: 'getLightEntityMenu',
+                TURNONOFF_ENTITY: 'getTurnOnOffEntityMenu',
+                ISSTATEON_ENTITY: 'getIsStateOnEntityMenu'
             }
             // TODO: ??? translation_map: {
             //     de: {
@@ -423,8 +444,25 @@ class Scratch3HomeAssistantBlocks {
     }
 
     getEntityMenu() {
-        if (_ws == null) connect()
-        return _entity_menu.length ? _entity_menu : [{ text: '暂无', value: 'NA' }]
+        return filterEntityMenu()
+    }
+
+    getLightEntityMenu() {
+        return filterEntityMenu(function(domain) {
+            return domain == 'light'
+        })
+    }
+
+    getTurnOnOffEntityMenu() {
+        return filterEntityMenu(function(domain) {
+            return domain != 'sensor' && domain != 'binary_sensor' && domain != 'device_tracker'
+        })
+    }
+
+    getIsStateOnEntityMenu() {
+        return filterEntityMenu(function(domain) {
+            return domain != 'sensor'
+        })
     }
 }
 
