@@ -4,6 +4,7 @@ _wsid = 0 // WebSocket session id
 // _wsapi = 'wss://xxx.xxx.xxx:8123/api/websocket' // TODO: Replace with yours
 // _token = null // TODO: Replace with HomeAssiatant long-live token, or enabled trusted_networks auth
 
+
 _entities = null // All Entity from Home Assistant
 _entity_menu = [] // Updated entity menu
 _states_changed = {} // State changed entities
@@ -207,7 +208,7 @@ class Scratch3HomeAssistantBlocks {
                     blockType: BlockType.COMMAND,
                     text: formatMessage({
                         id: 'homeassistant.turnOnOff',
-                        default: '设置 [ENTITY] 的状态 [ONOFF]'
+                        default: '设置 [ENTITY] 的状态为 [ONOFF]'
                     }),
                     arguments: {
                         ENTITY: {
@@ -302,7 +303,7 @@ class Scratch3HomeAssistantBlocks {
                     opcode: 'whenStateChanged',
                     text: formatMessage({
                         id: 'homeassistant.whenStateChanged',
-                        default: '当 [ENTITY] 状态变化'
+                        default: '当 [ENTITY] 的状态变化'
                     }),
                     blockType: BlockType.HAT,
                     arguments: {
@@ -316,13 +317,13 @@ class Scratch3HomeAssistantBlocks {
                     opcode: 'whenStateChangedToOnOff',
                     text: formatMessage({
                         id: 'homeassistant.whenStateChangedToOnOff',
-                        default: '当 [ENTITY] 状态变为 [ONOFF]'
+                        default: '当 [ENTITY] 的状态变为 [ONOFF]'
                     }),
                     blockType: BlockType.HAT,
                     arguments: {
                         ENTITY: {
                             type: ArgumentType.STRING,
-                            menu: 'ENTITY'
+                            menu: 'ISSTATEON_ENTITY'
                         },
                         ONOFF: {
                             type: ArgumentType.STRING,
@@ -336,7 +337,7 @@ class Scratch3HomeAssistantBlocks {
                     opcode: 'getState',
                     text: formatMessage({
                         id: 'homeassistant.getState',
-                        default: '[ENTITY] 的当前状态'
+                        default: '[ENTITY] 的状态'
                     }),
                     blockType: BlockType.REPORTER,
                     arguments: {
