@@ -115,7 +115,7 @@ function filterEntityMenu(filter) {
         var menu = []
         for (var i in _entity_menu) {
             var item = _entity_menu[i]
-            if (filter(item.value.split('.')[0])) {
+            if (filter(item.value)) {
                 menu.push(item)
             }
         }
@@ -307,7 +307,7 @@ class Scratch3HomeAssistantBlocks {
                     arguments: {
                         ENTITY: {
                             type: ArgumentType.STRING,
-                            menu: 'MEDIA_PLAYER_ENTITY'
+                            menu: 'PLAY_MEDIA_ENTITY'
                         },
                         TEXT: {
                             type: ArgumentType.STRING,
@@ -403,7 +403,7 @@ class Scratch3HomeAssistantBlocks {
                 LIGHT_ENTITY: 'getLightEntityMenu',
                 TURNONOFF_ENTITY: 'getTurnOnOffEntityMenu',
                 ISSTATEON_ENTITY: 'getIsStateOnEntityMenu',
-                MEDIA_PLAYER_ENTITY: 'getMediaPlayerEntityMenu'
+                PLAY_MEDIA_ENTITY: 'getPlayMediaEntityMenu'
             }
             // TODO: ??? translation_map: {
             //     de: {
@@ -474,26 +474,28 @@ class Scratch3HomeAssistantBlocks {
     }
 
     getLightEntityMenu() {
-        return filterEntityMenu(function(domain) {
-            return domain == 'light'
+        return filterEntityMenu(function(entity_id) {
+            return entity_id.startsWith('light')
         })
     }
 
     getTurnOnOffEntityMenu() {
-        return filterEntityMenu(function(domain) {
-            return domain != 'sensor' && domain != 'binary_sensor' && domain != 'device_tracker'
+        return filterEntityMenu(function(entity_id) {
+            return !entity_id.startsWith('sensor') && !entity_id.startsWith('binary_sensor') && !entity_id.startsWith('device_tracker')
         })
     }
 
     getIsStateOnEntityMenu() {
-        return filterEntityMenu(function(domain) {
-            return domain != 'sensor'
+        return filterEntityMenu(function(entity_id) {
+            return !entity_id.startsWith('sensor')
         })
     }
 
-    getMediaPlayerEntityMenu() {
-        return filterEntityMenu(function(domain) {
-            return domain == 'media_player'
+    getPlayMediaEntityMenu() {
+        return filterEntityMenu(function(entity_id) {
+            if (!entity_id.startsWith('media_player')) return
+            var entity = findEntity(entity_id)
+            return entity && entity.attributes.supported_features & 512
         })
     }
 }
