@@ -4,7 +4,6 @@ _wsid = 0 // WebSocket session id
 // _wsapi = 'wss://xxx.xxx.xxx:8123/api/websocket' // TODO: Replace with yours
 // _token = null // TODO: Replace with HomeAssiatant long-live token, or enabled trusted_networks auth
 
-
 _entities = null // All Entity from Home Assistant
 _entity_menu = [] // Updated entity menu
 _states_changed = {} // State changed entities
@@ -298,6 +297,27 @@ class Scratch3HomeAssistantBlocks {
                         }
                     }
                 },
+                {
+                    opcode: 'speech',
+                    blockType: BlockType.COMMAND,
+                    text: formatMessage({
+                        id: 'homeassistant.speech',
+                        default: '让 [ENTITY] 说 [TEXT]'
+                    }),
+                    arguments: {
+                        ENTITY: {
+                            type: ArgumentType.STRING,
+                            menu: 'MEDIA_PLAYER_ENTITY'
+                        },
+                        TEXT: {
+                            type: ArgumentType.STRING,
+                            defaultValue: formatMessage({
+                                id: 'homeassistant.defaultTextForSpeech',
+                                default: '你好，我是 Scratch'
+                            })
+                        }
+                    }
+                },
                 '---',
                 {
                     opcode: 'whenStateChanged',
@@ -382,7 +402,8 @@ class Scratch3HomeAssistantBlocks {
                 ENTITY: 'getEntityMenu',
                 LIGHT_ENTITY: 'getLightEntityMenu',
                 TURNONOFF_ENTITY: 'getTurnOnOffEntityMenu',
-                ISSTATEON_ENTITY: 'getIsStateOnEntityMenu'
+                ISSTATEON_ENTITY: 'getIsStateOnEntityMenu',
+                MEDIA_PLAYER_ENTITY: 'getMediaPlayerEntityMenu'
             }
             // TODO: ??? translation_map: {
             //     de: {
@@ -411,6 +432,10 @@ class Scratch3HomeAssistantBlocks {
 
     speechInMiAi(args, util) {
         callService('hello_miai.send', { message: args.TEXT })
+    }
+
+    speech(args, util) {
+        callService('tts.baidu_say', { entity_id: args.ENTITY, message: args.TEXT })
     }
 
     whenStateChanged(args, util) {
@@ -463,6 +488,12 @@ class Scratch3HomeAssistantBlocks {
     getIsStateOnEntityMenu() {
         return filterEntityMenu(function(domain) {
             return domain != 'sensor'
+        })
+    }
+
+    getMediaPlayerEntityMenu() {
+        return filterEntityMenu(function(domain) {
+            return domain == 'media_player'
         })
     }
 }
